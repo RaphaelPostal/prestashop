@@ -1,0 +1,17 @@
+#header, #header .header-top{
+    background-color:#7799a5;
+    color: black;
+}
+
+#header .header-top a[data-depth="0"]{
+    color:white;
+}
+
+#header a {
+    color: white;
+}
+
+.swiper {
+    width: 100%;
+    height: 200px;
+}
