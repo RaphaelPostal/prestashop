@@ -50,6 +50,7 @@ import './lib/jquery.scrollbox.min';
 
 import './components/block-cart';
 import $ from 'jquery';
+
 /* eslint-enable */
 
 // "inherit" EventEmitter
@@ -57,6 +58,7 @@ import $ from 'jquery';
 for (const i in EventEmitter.prototype) {
   prestashop[i] = EventEmitter.prototype[i];
 }
+console.log('YES');
 
 $(document).ready(() => {
   const dropDownEl = $('.js-dropdown');
@@ -72,15 +74,32 @@ $(document).ready(() => {
   productMinitature.init();
   productSelect.init();
 
-  $('.carousel[data-touch="true"]').swipe({
-    swipe(event, direction) {
-      if (direction === 'left') {
-        $(this).carousel('next');
-      }
-      if (direction === 'right') {
-        $(this).carousel('prev');
-      }
+  // $('.carousel[data-touch="true"]').swipe({
+  //   swipe(event, direction) {
+  //     if (direction === 'left') {
+  //       $(this).carousel('next');
+  //     }
+  //     if (direction === 'right') {
+  //       $(this).carousel('prev');
+  //     }
+  //   },
+  //   allowPageScroll: 'vertical',
+  // });
+
+  const swiper = new Swiper('.swiper', {
+    // Optional parameters
+    direction: 'horizontal',
+    loop: true,
+
+    // If we need pagination
+    pagination: {
+      el: '.swiper-pagination',
     },
-    allowPageScroll: 'vertical',
+
+    // Navigation arrows
+    navigation: {
+      nextEl: '.swiper-button-next',
+      prevEl: '.swiper-button-prev',
+    },
   });
 });
