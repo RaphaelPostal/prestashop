@@ -34,14 +34,28 @@
 
 {if $homeslider.slides}
 
-  <div class="swiper">
+  <div class="carousel carousel-inner" id="carousel">
     <!-- Additional required wrapper -->
     <div class="swiper-wrapper">
       <!-- Slides -->
-      <div class="swiper-slide">Slide 1</div>
-      <div class="swiper-slide">Slide 2</div>
-      <div class="swiper-slide">Slide 3</div>
-      ...
+      {foreach from=$homeslider.slides item=slide name='homeslider'}
+        <li class="carousel-item swiper-slide {if $smarty.foreach.homeslider.first}active{/if}" role="option" aria-hidden="{if $smarty.foreach.homeslider.first}false{else}true{/if}">
+          <a href="{$slide.url}">
+            <figure>
+              <img src="{$slide.image_url}" alt="{$slide.legend|escape}" loading="lazy" width="1110" height="340">
+              {if $slide.title || $slide.description}
+                <figcaption class="caption">
+                  <h2 class="display-1 text-uppercase">{$slide.title}</h2>
+                  <div class="caption-description">{$slide.description nofilter}</div>
+                </figcaption>
+              {/if}
+            </figure>
+          </a>
+        </li>
+      {/foreach}
+{*      <div class="swiper-slide">Slide 1</div>*}
+{*      <div class="swiper-slide">Slide 2</div>*}
+{*      <div class="swiper-slide">Slide 3</div>*}
     </div>
     <!-- If we need pagination -->
     <div class="swiper-pagination"></div>
@@ -50,8 +64,6 @@
     <div class="swiper-button-prev"></div>
     <div class="swiper-button-next"></div>
 
-    <!-- If we need scrollbar -->
-    <div class="swiper-scrollbar"></div>
   </div>
 
 {*  <div id="carousel" data-ride="carousel" class="carousel slide" data-interval="{$homeslider.speed}" data-wrap="{(string)$homeslider.wrap}" data-pause="{$homeslider.pause}" data-touch="true">*}
@@ -93,10 +105,8 @@
 {*  </div>*}
 {/if}
 
-
 <style>
-  .swiper {
-    width: 600px;
-    height: 300px;
+  .carousel{
+    list-style-type: none;
   }
 </style>

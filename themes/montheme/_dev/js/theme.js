@@ -86,7 +86,7 @@ $(document).ready(() => {
   //   allowPageScroll: 'vertical',
   // });
 
-  const swiper = new Swiper('.swiper', {
+  const swiper = new Swiper('.carousel', {
     // Optional parameters
     direction: 'horizontal',
     loop: true,
@@ -101,5 +101,6 @@ $(document).ready(() => {
       nextEl: '.swiper-button-next',
       prevEl: '.swiper-button-prev',
     },
+
   });
 });
