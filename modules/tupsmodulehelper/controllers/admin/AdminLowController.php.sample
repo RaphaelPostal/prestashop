@@ -1,0 +1,255 @@
+<?php
+/**
+ * Created by Lord of Web.
+ * User: Damien
+ * Date: 02/01/2019
+ * Time: 11:27
+ */
+
+
+class AdminLowController extends ModuleAdminController
+{
+
+
+    public function __construct() {
+
+        $this->table = 'themefooter';
+        $this->className = 'ThemeFooter';
+        $this->bootstrap = true;
+        $this->lang = 1;
+        parent::__construct();
+        $this->identifier = 'id_footer';
+        $this->list_simple_header = false;
+        $this->lite_display = false;
+        $this->_defaultOrderBy = 'position';
+        $this->position_identifier = 'position';
+        $this->_where = 'AND `id_shop` = '.(int)$this->context->shop->id;
+
+        $this->fields_list = array(
+            'id_footer' => array(
+                'title' => $this->l('Footer ID'),
+                'type' => 'text',
+                'search' => false,
+                'orderby' => false,
+            ),
+            'text' => array(
+                'title' => $this->l('Block text'),
+                'type' => 'editable',
+                'search' => false,
+                'orderby' => false,
+            ),
+            'col' => array(
+                'title' => $this->l('Colonne'),
+                'type' => 'int',
+                'search' => false,
+                'orderby' => false,
+            ),
+            'position' => array(
+                'title' => $this->module->l('Position'),
+                'width' => 150,
+                'type' => 'decimal',
+                'position' => 'position'
+            ),
+
+        );
+
+        $this->actions = array('edit', 'delete');
+    }
+
+
+    public function initToolBarTitle() {
+        $this->toolbar_title[] = $this->l('Block Footer');
+    }
+
+    public function ajaxProcessUpdatePositions() {
+        $arrayPosition = Tools::getValue('footer');
+        $re = '/tr_[0-9]+_([0-9]*)_[0-9]/';
+        foreach ($arrayPosition as $key => $item) {
+            preg_match_all($re, $item, $matches, PREG_SET_ORDER, 0);
+
+            $id = $matches[0][1];
+            $block = new $this->className($id);
+            $block->position = $key;
+            $block->save();
+        }
+    }
+
+    public function renderForm() {
+
+        /** @var $this->className $obj */
+        if (!($obj = $this->loadObject(true))) {
+            return;
+        }
+
+        $this->fields_value = [
+            'id_shop' => $this->context->shop->id
+        ];
+
+
+        $this->fields_form = array(
+            'tinymce' => true,
+            'legend' => array(
+                'title' => $this->l('New custom CMS block'),
+            ),
+            'input' => array(
+                'id_info' => array(
+                    'type' => 'hidden',
+                    'name' => 'id_info'
+                ),
+                'content' => array(
+                    'type' => 'textarea',
+                    'label' => $this->l('Text'),
+                    'lang' => true,
+                    'name' => 'text',
+                    'cols' => 40,
+                    'rows' => 10,
+                    'class' => 'rte',
+                    'autoload_rte' => true,
+                ),
+                'col' => array(
+                    'type' => 'select',
+                    'label' => $this->l('Colonne'),
+                    'lang' => false,
+                    'name' => 'col',
+                    'options' => array(
+                        'query' => [
+                            array(
+                                'id_col' => 1,
+                                'name' => 1
+                            ),
+                            array(
+                                'id_col' => 2,
+                                'name' => 2
+                            ),
+                            array(
+                                'id_col' => 3,
+                                'name' => 3
+                            ),
+                            array(
+                                'id_col' => 4,
+                                'name' => 4
+                            ),
+                            array(
+                                'id_col' => 5,
+                                'name' => 5
+                            ),
+                            array(
+                                'id_col' => 5,
+                                'name' => 5
+                            ),
+                            array(
+                                'id_col' => 6,
+                                'name' => 6
+                            ),
+                            array(
+                                'id_col' => 7,
+                                'name' => 7
+                            ),
+                            array(
+                                'id_col' => 8,
+                                'name' => 8
+                            ),
+                            array(
+                                'id_col' => 9,
+                                'name' => 9
+                            ),
+                            array(
+                                'id_col' => 10,
+                                'name' => 10
+                            ),
+                            array(
+                                'id_col' => 11,
+                                'name' => 11
+                            ),
+                            array(
+                                'id_col' => 12,
+                                'name' => 12
+                            ),
+                        ],
+                        'id' => 'id_col',
+                        'name' => 'name'
+                    ),
+                ),
+                'id_shop' => array(
+                    'type' => 'hidden',
+                    'name' => 'id_shop'
+                ),
+            ),
+            'submit' => array(
+                'title' => $this->l('Save'),
+            ),
+        );
+
+        $this->fields_form['submit'] = array(
+            'title' => $this->l('Save'),
+        );
+
+
+        return parent::renderForm();
+    }
+
+
+    /**
+     * assign default action in toolbar_btn smarty var, if they are not set.
+     * uses override to specifically add, modify or remove items
+     *
+     */
+    public function initToolbar() {
+        /** @var CookieCore $cookie */
+        $cookie = $this->context->cookie;
+
+
+        switch ($this->display) {
+            case 'add':
+            case 'edit':
+                // Default save button - action dynamically handled in javascript
+                $this->toolbar_btn['save'] = array(
+                    'href' => '#',
+                    'desc' => $this->l('Save')
+                );
+
+                break;
+            case 'view':
+
+                break;
+            case 'options':
+                $this->toolbar_btn['save'] = array(
+                    'href' => '#',
+                    'desc' => $this->l('Save')
+                );
+                break;
+            default: // list
+                $this->toolbar_btn['new'] = array(
+                    'href' => self::$currentIndex . '&add' . $this->table . '&token=' . $this->token ,
+                    'desc' => $this->l('Add new')
+                );
+                if ($this->allow_export) {
+                    $this->toolbar_btn['export'] = array(
+                        'href' => self::$currentIndex . '&export' . $this->table . '&token=' . $this->token,
+                        'desc' => $this->l('Export')
+                    );
+                }
+        }
+        $this->addToolBarModulesListButton();
+    }
+
+
+    public function processAdd() {
+
+        $obj = parent::processAdd();
+
+        $this->module->clearCacheModule();
+
+        return $obj;
+    }
+
+    public function processUpdate() {
+        $obj = parent::processUpdate();
+
+        $this->module->clearCacheModule();
+
+        return $obj;
+    }
+
+    
+}

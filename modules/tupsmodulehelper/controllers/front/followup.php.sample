@@ -1,0 +1,74 @@
+<?php
+/**
+ * Created by Lord of Web.
+ * User: Damien
+ * Date: 02/01/2019
+ * Time: 11:51
+ */
+
+class lowmodulefollowupModuleFrontController extends ModuleFrontController
+{
+
+
+    public function __construct() {
+        parent::__construct();
+        $this->context = ContextCore::getContext();
+        $this->ssl = true;
+        $this->errors = array();
+
+    }
+
+    public function init() {
+        parent::init();
+
+    }
+
+    public function canonicalRedirection($canonical_url = '') {
+
+    }
+
+    /**
+     * @see FrontControllerCore::initContent()
+     */
+    public function initContent() {
+        parent::initContent();
+
+        $this->getContent();
+
+    }
+
+    /**
+     * @see FrontControllerCore::postProcess()
+     */
+    public function postProcess() {
+        parent::postProcess();
+    }
+
+    /**
+     * @see FrontControllerCore::setMedia()
+     */
+    public function setMedia() {
+        parent::setMedia();
+
+//        $this->addJS(_MODULE_DIR_ . $this->module->name . '/views/js/box.js');
+//        $this->addCSS(_MODULE_DIR_ . $this->module->name . '/views/css/box.css');
+
+    }
+
+    /**
+     * @see ModuleFrontControllerCore::getContent()
+     */
+    public function getContent($assign = true) {
+
+
+        $this->context->smarty->assign(array(
+            'errors' => $this->errors,
+        ));
+
+
+        $this->setTemplate('front.tpl');
+    }
+
+
+
+}

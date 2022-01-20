@@ -1,0 +1,8 @@
+{
+    "description": "TupsModule",
+    "autoload": {
+        "psr-4": {
+            "PrestaShop\\Module\\TupsModule\\": "classes/"
+        }
+    }
+}

@@ -1,0 +1,392 @@
+<?php
+/**
+ * Created by Lord of Web.
+ * User: Damien
+ * Date: 21/12/2018
+ * Time: 09:44
+ */
+
+class AdminMamyOrderProposalController extends ModuleAdminController
+{
+
+
+    public function postProcess() {
+        parent::postProcess();
+
+        // We want to be sure that displaying PDF is the last thing this controller will do
+        exit;
+    }
+
+
+    public function initProcess() {
+        parent::initProcess();
+
+        $access = Profile::getProfileAccess($this->context->employee->id_profile, (int)Tab::getIdFromClassName('AdminOrders'));
+
+
+        if ($access['view'] === '1' && ($action = Tools::getValue('submitAction'))) {
+            $this->action = $action;
+        } else {
+            $this->errors[] = Tools::displayError('You do not have permission to view this.');
+        }
+    }
+
+
+    public function ajaxProcessCallMamies() {
+        $mamiesCall = Tools::getValue('mamie', false);
+        $order_id = Tools::getValue('order_id', false);
+        if ($mamiesCall) {
+
+            $db = Db::getInstance();
+            $delays = Tools::getValue('delay');
+
+            foreach ($mamiesCall as $id_mamie => $id_order_details) {
+
+                $mamy = new Mamies($id_mamie);
+
+                $call = array(
+                    'id_mamies' => (int)$mamy->id,
+                    'id_order' => (int)$order_id,
+                    'status' => 'unanswered',
+                    'date_add' => date('Y-m-d H:i:s'),
+                    'date_upd' => date('Y-m-d H:i:s')
+                );
+
+
+                if ($db->AutoExecute(_DB_PREFIX_ . 'mamies_call', $call, 'INSERT')) {
+
+                    $id_call = $db->Insert_ID();
+                    $products = '';
+                    $date = null;
+                    $order_details = array();
+
+                    foreach ($id_order_details as $id_order_detail => $null) {
+
+                        $orderDetail = new OrderDetail($id_order_detail);
+                        $order_details[] = $orderDetail->id;
+                        $date = isset($delays[$orderDetail->id]) ? $delays[$orderDetail->id] : null;
+
+                        $products .= '<tr><td>' . $orderDetail->product_quantity . ' x ' . $orderDetail->product_name . ($date ? ' <bold>pour le ' . implode('/', array_reverse(explode('-', $date))) . '</bold>' : '') . '</td></tr>';
+
+                        $call_detail = array(
+                            'id_call' => (int)$id_call,
+                            'id_order_detail' => $orderDetail->id,
+                            'due_date' => $date ? $date : null
+                        );
+
+                        $db->AutoExecute(_DB_PREFIX_ . 'mamies_call_detail', $call_detail, 'INSERT');
+
+                    }
+
+                    $db->AutoExecute(_DB_PREFIX_ . 'mamies_call', array('order_details' => implode(',', $order_details)), 'UPDATE', '`id_call` = ' . $id_call);
+
+                    $order = new Order($order_id);
+                    $order->setCurrentState(17);
+
+
+                }
+
+                $params = array();
+                $response_page = Context::getContext()->link->getModuleLink('lowmamyfactory', 'mamyfollowup');
+                $response_page .= !strpos($response_page, '?') ? '?token=' . $mamy->token : '&token=' . $mamy->token;
+                $response_page .= '&call=' . $id_call;
+                $params['{mamie}'] = $mamy->firstname;
+                $params['{order_name}'] = $order_id;
+                $params['{accept}'] = $response_page . '&accept';
+                $params['{decline}'] = $response_page . '&decline';
+                $params['{products}'] = $products;
+                $params['{shop_logo}'] = $products;
+                $params['{products_txt}'] = str_replace(array('<tr><td>', '<bold>', '</bold>', '</td></tr>'), array("", "", "", "\n"), $products);
+
+                if ($successMail = Mail::Send((int)Context::getContext()->language->id,
+                    'appel_d_offre',
+                    Mail::l('Call', (int)Context::getContext()->language->id),
+                    $params,
+                    $mamy->email,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    $this->module->getLocalPath() . 'mails/',
+                    true)) {
+                    die(Tools::jsonEncode(array(
+                        'success' => true,
+                        'message' => "Appel d'offre envoyé"
+                    )));
+                } else {
+
+                    var_dump($successMail);
+                }
+
+
+            }
+
+
+        } else {
+            die(Tools::displayError('Aucun appel transmis'));
+        }
+    }
+
+
+    public function ajaxProcessJobsMamies() {
+
+
+        $id_order = Tools::getValue('order_id', false);
+
+
+
+        if ($id_order && Validate::isLoadedObject($order = new Order($id_order))) {
+
+            $db = Db::getInstance();
+
+            $delays = Tools::getValue('delay');
+
+            $calls_to_jobs = array();
+            $direct_jobs = array();
+
+            $i = 0;
+
+            $mamie = Tools::getValue('mamie');
+
+            foreach ($mamie as $id_mamy => $order_detail) {
+                foreach ($order_detail as $id_order_detail => $id_call) {
+                    if (!empty($id_call)) {
+                        $calls_to_jobs[$id_call][$id_mamy][] = $id_order_detail;
+                    } else {
+                        $direct_jobs[$id_mamy][] = $id_order_detail;
+                        $i++;
+                    }
+                }
+            }
+
+            if (sizeof($calls_to_jobs)) {
+
+                foreach ($calls_to_jobs as $id_call => $job_details) {
+
+                    $id_mamy = array_keys($job_details);
+                    $id_mamy = array_shift($id_mamy);
+
+                    $job_details = $job_details[$id_mamy];
+
+                    $success = $db->AutoExecute(_DB_PREFIX_ . 'mamies_job', array(
+                        'id_mamies' => $id_mamy,
+                        'id_order' => $id_order,
+                        'status' => 'unconfirmed',
+                        'id_call' => (int)$id_call), 'INSERT');
+
+                    if ($success) {
+
+                        $id_job = $db->Insert_ID();
+
+                        $products = '';
+
+                        $mamy = new Mamies($id_mamy);
+
+                        foreach ($job_details as $id_order_detail) {
+
+                            $orderDetail = new OrderDetail($id_order_detail);
+
+                            $due_date = Mamies::dueDate($id_mamy, $orderDetail->id);
+
+                            $composition = '<tr style="border-bottom:1px solid #777;"><th style="width:400px; text-align:left;font-size:12px;border-right:1px solid #777;">Composants</th><th style="width:100px; text-align:center;font-size:12px;" >Qté requise</th></tr>';
+
+                            $sql = '
+								SELECT paf.*, fl.`name`, fvl.`value`, IFNULL(ms.quantity, 0) stock
+								FROM `ps_product_attribute_feature` paf
+								LEFT JOIN `ps_mamies_stock` ms ON(paf.`id_feature_value` = ms.`id_feature_value` AND ms.`id_mamies` = ' . (int)$mamy->id . ')
+								LEFT JOIN `ps_feature_lang` fl ON(paf.`id_feature` = fl.`id_feature` AND fl.`id_lang` = ' . (int)Context::getContext()->language->id . ')
+								LEFT JOIN `ps_feature_value_lang` fvl ON(paf.`id_feature_value` = fvl.`id_feature_value` AND fvl.`id_lang` = ' . (int)Context::getContext()->language->id . ')
+								WHERE paf.`id_product_attribute` =  ' . (int)$orderDetail->product_attribute_id . '  
+								ORDER BY paf.`id_feature`, paf.`id_feature_value`';
+
+                            $product_composition = $db->ExecuteS($sql);
+
+
+                            if (sizeof($product_composition)) {
+
+                                foreach ($product_composition as $component) {
+
+                                    $needed = (int)$component['quantity'];
+
+                                    $name = $component['name'];
+                                    $name .= ' - ' . $component['value'];
+
+                                    $composition .= '<tr><td style="font-size:12px;border-right:1px solid #777;">' . $name . '</td><td style="text-align:center;font-size:12px;" >' . $needed . '</td></tr>';
+
+                                    $current = (int)$component['stock'];
+
+                                    $diff = $current - ($orderDetail->product_quantity * $needed);
+
+                                    //$db->AutoExecute(_DB_PREFIX_.'mamies_stock', array('quantity' => $diff), 'UPDATE', $where);
+
+                                    $db->AutoExecute(_DB_PREFIX_ . 'mamies_job_detail', array('id_job' => $id_job, 'due_date' => $due_date, 'id_order_detail' => $orderDetail->id, 'id_feature_value' => $component['id_feature_value'], 'destock' => (int)$diff, 'restock' => (int)$component['quantity']), 'INSERT');
+
+                                }
+                            } else {
+                                $db->AutoExecute(_DB_PREFIX_ . 'mamies_job_detail', array('id_job' => $id_job, 'due_date' => $due_date, 'id_order_detail' => $orderDetail->id, 'id_feature_value' => 0, 'destock' => 0, 'restock' => 0), 'INSERT');
+                            }
+
+                            $products .= '<tr><td>' . $orderDetail->product_quantity . ' x ' . $orderDetail->product_name . (!empty($due_date) ? ' <bold>pour le ' . $due_date . '</bold>' : '') . '<br /><table style="margin:5px auto; border:1px solid #777;">' . $composition . '</table></td></tr>';
+
+                        }
+                    }
+                    $params = array();
+                    $response_page = Context::getContext()->link->getModuleLink('lowmamyfactory', 'mamyfollowup');
+                    $response_page .= !strpos($response_page, '?') ? '?token=' . $mamy->token : '&token=' . $mamy->token;
+                    $response_page .= '&job=' . $id_job;
+
+                    $params['{mamie}'] = $mamy->firstname;
+                    $params['{order_name}'] = $id_order;
+                    $params['{confirm}'] = $response_page . '&confirm';
+                    $params['{finished}'] = $response_page . '&done';
+                    $params['{products}'] = $products;
+                    $params['{products_txt}'] = str_replace(array('<tr><td>', '<bold>', '</bold>', '</td></tr>'), array("", "", "", "\n"), $products);
+
+                    @Mail::Send((int)Context::getContext()->language->id,
+                        'order_mamies',
+                        Mail::l('An order for you', (int)Context::getContext()->language->id),
+                        $params,
+                        $mamy->email,
+                        NULL,
+                        NULL,
+                        NULL,
+                        NULL,
+                        NULL,
+                        $this->module->getLocalPath() . 'mails/',
+                        true);
+
+                }
+            }
+
+            //continue;
+            $rejected = $db->ExecuteS('SELECT * FROM `' . _DB_PREFIX_ . 'mamies_call` WHERE `id_order` = ' . $id_order . ' AND `id_mamies` NOT IN (SELECT `id_mamies` FROM `' . _DB_PREFIX_ . 'mamies_job` WHERE  `id_order` = ' . $id_order . ') AND `status` = "accepted"');
+
+
+            foreach ($rejected as $row) {
+
+                $mamy = new Mamies($row['id_mamies']);
+                $products = '';
+                $order_details = explode(',', $row['order_details']);
+                foreach ($order_details as $id_order_detail) {
+                    $orderDetail = new OrderDetail($id_order_detail);
+                    $products .= '<tr><td>' . $orderDetail->product_quantity . ' x ' . $orderDetail->product_name . '</td></tr>';
+                }
+                $params['{mamie}'] = $mamy->firstname;
+                $params['{order_name}'] = $id_order;
+                $params['{products}'] = $products;
+                $params['{products_txt}'] = str_replace(array('<tr><td>', '<bold>', '</bold>', '</td></tr>'), array("", "", "", "\n"), $products);
+
+                @Mail::Send((int)Context::getContext()->language->id,
+                    'too_bad',
+                    Mail::l('Sorry the job goes for another knitter', (int)Context::getContext()->language->id),
+                    $params,
+                    $mamy->email,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    NULL,
+                    $this->module->getLocalPath() . 'mails/',
+                    true);
+
+            }
+
+
+            if (sizeof($direct_jobs)) {
+                foreach ($direct_jobs as $id_mamy => $job_details) {
+                    $success = $db->AutoExecute(_DB_PREFIX_ . 'mamies_job', array(
+                        'id_mamies' => $id_mamy,
+                        'id_order' => $id_order,
+                        'status' => 'unconfirmed',
+                        'id_call' => 0), 'INSERT');
+                    if ($success) {
+                        $id_job = $db->Insert_ID();
+                        $mamy = new Mamies($id_mamy);
+                        $products = '';
+                        foreach ($job_details as $id_order_detail) {
+                            $orderDetail = new OrderDetail($id_order_detail);
+                            $due_date = $delays[$orderDetail->id];
+                            $composition = '<tr style="border-bottom:1px solid #777;"><th style="width:400px; text-align:left;font-size:12px;border-right:1px solid #777;">Composants</th><th style="width:100px; text-align:center;font-size:12px;" >Qté requise</th></tr>';
+                            $sql = '
+								SELECT paf.*, fl.`name`, fvl.`value`, IFNULL(ms.quantity, 0) stock
+								FROM `ps_product_attribute_feature` paf
+								LEFT JOIN `ps_mamies_stock` ms ON(paf.`id_feature_value` = ms.`id_feature_value` AND ms.`id_mamies` = ' . (int)$mamy->id . ')
+								LEFT JOIN `ps_feature_lang` fl ON(paf.`id_feature` = fl.`id_feature` AND fl.`id_lang` = ' . (int)Context::getContext()->language->id . ')
+								LEFT JOIN `ps_feature_value_lang` fvl ON(paf.`id_feature_value` = fvl.`id_feature_value` AND fvl.`id_lang` = ' . (int)Context::getContext()->language->id . ')
+								WHERE paf.`id_product_attribute` =  ' . (int)$orderDetail->product_attribute_id . '  
+								ORDER BY paf.`id_feature`, paf.`id_feature_value`';
+
+                            $product_composition = $db->ExecuteS($sql);
+                            if (sizeof($product_composition)) {
+                                foreach ($product_composition as $component) {
+                                    if (in_array((int)$component['id_feature'], array(16, 17)))
+                                        $needed = 1;
+                                    else
+                                        $needed = (int)$component['quantity'];
+
+                                    $name = '';
+                                    if ((int)$component['id_feature'] == 11)
+                                        $name = 'Laine';
+                                    elseif ((int)$stock['id_feature'] == 14)
+                                        $component = 'Bouton';
+                                    else
+                                        $name = $component['name'];
+                                    $name .= ' - ' . $component['value'];
+
+                                    $composition .= '<tr><td style="font-size:12px;border-right:1px solid #777;">' . $name . '</td><td style="text-align:center;font-size:12px;" >' . $needed . '</td></tr>';
+
+                                    $where = '`id_mamies` = ' . $mamy->id . ' AND `id_feature_value` = ' . $component['id_feature_value'];
+                                    $current = (int)$component['stock'];
+                                    $diff = $current - ($orderDetail->product_quantity * $needed);
+                                    //$db->AutoExecute(_DB_PREFIX_.'mamies_stock', array('quantity' => $diff), 'UPDATE', $where);
+                                    $db->AutoExecute(_DB_PREFIX_ . 'mamies_job_detail', array('id_job' => $id_job, 'due_date' => $due_date, 'id_order_detail' => $orderDetail->id, 'id_feature_value' => $component['id_feature_value'], 'destock' => (int)$diff, 'restock' => (int)$component['quantity']), 'INSERT');
+                                }
+                            } else
+                                $db->AutoExecute(_DB_PREFIX_ . 'mamies_job_detail', array('id_job' => $id_job, 'due_date' => $due_date, 'id_order_detail' => $orderDetail->id, 'id_feature_value' => 0, 'destock' => 0, 'restock' => 0), 'INSERT');
+                            $products .= '<tr><td>' . $orderDetail->product_quantity . ' x ' . $orderDetail->product_name . (!empty($due_date) ? ' <bold>pour le ' . implode('/', array_reverse(explode('-', $due_date))) . '</bold>' : '') . '<br /><table style="margin:5px auto; border:1px solid #777;">' . $composition . '</table></td></tr>';
+                        }
+                    }
+
+                    $params = array();
+                    $response_page = Context::getContext()->link->getModuleLink('lowmamyfactory', 'mamyfollowup');
+                    $response_page .= !strpos($response_page, '?') ? '?token=' . $mamy->token : '&token=' . $mamy->token;
+                    $response_page .= '&job=' . $id_job;
+
+
+                    $params['{mamie}'] = $mamy->firstname;
+                    $params['{order_name}'] = $id_order;
+                    $params['{confirm}'] = $response_page . '&confirm';
+                    $params['{finished}'] = $response_page . '&done';
+                    $params['{products}'] = $products;
+                    $params['{products_txt}'] = str_replace(array('<tr><td>', '<bold>', '</bold>', '</td></tr>'), array("", "", "", "\n"), $products);
+
+
+                    @Mail::Send((int)Context::getContext()->language->id,
+                        'order_mamies',
+                        Mail::l('An order for you', (int)Context::getContext()->language->id),
+                        $params,
+                        $mamy->email,
+                        NULL,
+                        NULL,
+                        NULL,
+                        NULL,
+                        NULL,
+                        $this->module->getLocalPath() . 'mails/',
+                        true);
+                }
+            }
+
+
+            die(Tools::jsonEncode(array(
+                'success' => true,
+                'message' => "Job validé"
+            )));
+
+        }
+
+
+    }
+
+
+}

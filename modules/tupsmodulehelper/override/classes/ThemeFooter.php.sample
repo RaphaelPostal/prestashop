@@ -1,0 +1,65 @@
+<?php
+
+
+class ThemeFooter extends ObjectModel
+{
+	public $id;
+	
+	public $id_shop;
+
+	public $position;
+
+	public $text;
+	public $col;
+
+	/**
+	 * @see ObjectModel::$definition
+	 */
+	public static $definition = array(
+		'table' => 'themefooter',
+		'primary' => 'id_footer',
+		'multilang' => true,
+		'fields' => array(
+			'id_shop' =>			array('type' => self::TYPE_NOTHING, 'validate' => 'isUnsignedId'),
+			'position' =>			array('type' => self::TYPE_NOTHING, 'validate' => 'isUnsignedId'),
+			'col' =>			array('type' => self::TYPE_INT),
+			// Lang fields
+			'text' =>				array('type' => self::TYPE_HTML, 'lang' => true, 'validate' => 'isCleanHtml', 'required' => true),
+		)
+	);
+
+
+
+    public static function loadAll($id_lang, $id_shop) {
+        $classname = __CLASS__;
+        $return = [];
+
+        /** @var DbQueryCore $sql */
+        $sql = new DbQuery();
+        $sql->select('*');
+        $sql->from(self::$definition['table'], 'm');
+        $sql->leftJoin(self::$definition['table'].'_lang', 'ml', ' ml.'.self::$definition['primary'].' = m.'.self::$definition['primary'].' AND ml.id_lang = '.(int)$id_lang);
+        $sql->where('m.`id_shop` = '.(int)$id_shop);
+        $sql->orderBy('m.`position`');
+
+        $results = Db::getInstance()->executeS($sql);
+
+        if(!empty($results)) {
+            foreach ($results as $result) {
+                $object = new $classname();
+                $object->id = $result[self::$definition['primary']];
+
+                foreach (self::$definition['fields'] as $field_name => $field ) {
+                    $object->$field_name = $result[$field_name];
+                }
+
+                $return[] = $object;
+            }
+
+        } else {
+            $return[] = new $classname();
+        }
+
+        return $return;
+    }
+}

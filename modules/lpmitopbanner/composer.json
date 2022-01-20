@@ -1,0 +1,8 @@
+{
+    "description": "LpmiTopBanner",
+    "autoload": {
+        "psr-4": {
+            "PrestaShop\\Module\\LpmiTopBanner\\": "src/"
+        }
+    }
+}
