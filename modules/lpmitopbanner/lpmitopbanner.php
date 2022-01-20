@@ -22,10 +22,11 @@ class LpmiTopBanner extends TupsCoreModule
 {
 
 
-    public $configDisplayName = 'Module exemple';
-    public $configDescription = "Pour le cours";
+    public $configDisplayName = 'Bannière Haut de site';
+    public $configDescription = "Module pour afficher un texte en haut de page";
 
-    const CONFIG_MAIL = 'mail';
+    const CONFIG_TEXT = 'texte';
+    const CONFIG_COLOR = 'blue';
 
     protected $_override = array(
         //'classes/Cart.php'
@@ -34,10 +35,24 @@ class LpmiTopBanner extends TupsCoreModule
 
     // Installation des hooks
     protected $_hook = array(
-//        'displayAdminOrderContentOrder' => array(
-//            'position' => 1,
-//        ),
+        'displayBanner' => array(
+            'position' => 1,
+        ),
     );
+
+    public function hookDisplayBanner($params) {
+        $couleur = self::getConfig(self::CONFIG_COLOR);
+        $texte = self::getConfig(self::CONFIG_TEXT);
+
+        $this->smarty->assign(
+            array(
+                'couleur' => $couleur,
+                'texte' => $texte
+            )
+        );
+
+        return $this->display($this->path, 'banner.tpl');
+    }
 
 
     // affichage de la configuration du module
@@ -61,9 +76,15 @@ class LpmiTopBanner extends TupsCoreModule
                 'input' => array(
                     array(
                         'type' => 'text',
-                        'label' => 'E-mails de notification',
+                        'label' => 'Texte',
                         'desc' => "Séparateur virgule",
-                        'name' => self::getConfigName(self::CONFIG_MAIL),
+                        'name' => self::getConfigName(self::CONFIG_TEXT),
+                    ),
+                    array(
+                        'type' => 'color',
+                        'label' => 'Couleur',
+                        'desc' => "Séparateur virgule",
+                        'name' => self::getConfigName(self::CONFIG_COLOR),
                     ),
                 ),
                 'submit' => array(
