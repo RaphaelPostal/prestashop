@@ -20,8 +20,6 @@ require_once $folderModule.'/vendor/autoload.php';
 
 class LpmiTopBanner extends TupsCoreModule
 {
-
-
     public $configDisplayName = 'Bannière Haut de site';
     public $configDescription = "Module pour afficher un texte en haut de page";
 
@@ -51,7 +49,7 @@ class LpmiTopBanner extends TupsCoreModule
             )
         );
 
-        return $this->display($this->path, 'banner.tpl');
+        return $this->display($this->path, 'fournisseurs.tpl');
     }
 
 

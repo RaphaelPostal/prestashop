@@ -1,0 +1,19 @@
+.bootstrap .nav-tabs.list-group > li {
+    float: none;
+}
+
+.bootstrap .tab-content > .form-horizontal > .tab-pane {
+    display: none;
+}
+
+.bootstrap .tab-content > .form-horizontal > .active {
+      display: block;
+}
+
+.bootstrap .list-group {
+    list-style: none;
+}
+
+.divAccessories {
+    margin-top: 30px;
+}
