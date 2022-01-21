@@ -8,6 +8,7 @@
         </tr>
         </thead>
         <tbody>
+
         <tr>
             {foreach from=$suppliers item=supplier}
                 <td>{$supplier->name}</td>

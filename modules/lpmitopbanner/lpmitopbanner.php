@@ -49,7 +49,7 @@ class LpmiTopBanner extends TupsCoreModule
             )
         );
 
-        return $this->display($this->path, 'fournisseurs.tpl');
+        return $this->display($this->path, 'banner.tpl');
     }
 
 
